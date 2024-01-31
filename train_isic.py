@@ -3,7 +3,7 @@ from torch.autograd import Variable
 from thop import profile
 import argparse
 from datetime import datetime
-from lib.TransFuse import TransFuse_L
+from lib.TransFuse import TransFuse_S
 from util.dataloader import get_loader, test_dataset
 from util.utils import AvgMeter
 import torch.nn.functional as F
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     opt = parser.parse_args()
  
     # ---- build models ----
-    model = TransFuse_L(pretrained=True).to(device)
+    model = TransFuse_S(pretrained=True).to(device)
     params = model.parameters()
     #params = model.opt()
     dummy_input = torch.randn(1, 3, 192, 256)
