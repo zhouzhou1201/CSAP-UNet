@@ -119,34 +119,22 @@ class BiFusion_block(nn.Module):
 
         
     def forward(self, g, x, ch_1):
-        #print(x.shape)
-        #print(g.shape)
         # bilinear pooling
         W_g = self.W_g(g)
-        #print(W_g.shape)
-        W_x = self.W_x(x)#W_g与W_x输出一致torch.Size([2, 256, 12, 16])
-        #print(W_x.shape)
-        bp = self.avg_pool(W_g + W_x)#torch.Size([2, 256, 1, 1])
-        #print(bp.shape)
-        bp = bp.view(-1, ch_1)#torch.Size([b, 256])
-        #print(bp.shape)
-        bp = self.FFN(bp)#torch.Size([b, 256])
-        #print(bp.shape)
-        bp = self.softmax(bp)#torch.Size([b, 256])
-        #print(bp.shape)
-        bp = bp.reshape(-1, ch_1, 1, 1)#torch.Size([b, 256, 1, 1])
-        #print(bp.shape)
+        W_x = self.W_x(x)
+        bp = self.avg_pool(W_g + W_x)
+        bp = bp.view(-1, ch_1)
+        bp = self.FFN(bp)
+        bp = self.softmax(bp)
+        bp = bp.reshape(-1, ch_1, 1, 1)
 
         # spatial attention for cnn branch
         g = W_g
-        g = self.CBAM(g)#torch.Size([b, 256, 12, 16])
-        #print(g.shape)
+        g = self.CBAM(g)
 
         # channel attetion for transformer branch
         x = W_x
-        x = self.CBAM(x)#torch.Size([b, 384, 12, 16])
-        #x = x.conv2d(x.shape[1],ch_1)
-        #print(x.shape)
+        x = self.CBAM(x)
 
         fuse = self.residual(torch.cat([x * bp, g * bp], 1))
 
@@ -204,20 +192,15 @@ class TransFuse_S(nn.Module):
 
     def forward(self, imgs, labels=None):
         # bottom-up path
-        x_b = self.transformer(imgs)#torch.Size([b, 192, 384])
-        #print(x_b.shape)
+        x_b = self.transformer(imgs)
         x_b = torch.transpose(x_b, 1, 2)
-        #print(x_b.shape)
-        x_b = x_b.view(x_b.shape[0], -1, 12, 16)#torch.Size([b, 384, 12, 16])
-        #print(x_b.shape)
+        x_b = x_b.view(x_b.shape[0], -1, 12, 16)
         x_b = self.drop(x_b)
 
-        x_b_1 = self.up1(x_b)#torch.Size([b, 128, 24, 32])尺寸扩大2倍，通道减少一半
-        #print(x_b_1.shape)
+        x_b_1 = self.up1(x_b)
         x_b_1 = self.drop(x_b_1)
 
         x_b_2 = self.up2(x_b_1)  # transformer pred supervise here
-        #print(x_b_2.shape)#torch.Size([2, 64, 48, 64])
         x_b_2 = self.drop(x_b_2)
 
         # top-down path
@@ -225,19 +208,15 @@ class TransFuse_S(nn.Module):
         x_u = self.resnet.bn1(x_u)
         x_u = self.resnet.relu(x_u)
         x_u = self.resnet.maxpool(x_u)
-        #print(x_u.shape)#torch.Size([2, 64, 48, 64])
 
         x_u_2 = self.resnet.layer1(x_u)
         x_u_2 = self.drop(x_u_2)
-        #print(x_u_2.shape)#torch.Size([2, 64, 48, 64])
 
         x_u_1 = self.resnet.layer2(x_u_2)
         x_u_1 = self.drop(x_u_1)
-        #print(x_u_1.shape)#torch.Size([2, 128, 24, 32])
 
         x_u = self.resnet.layer3(x_u_1)
         x_u = self.drop(x_u)
-        #print(x_u.shape)#torch.Size([2, 256, 12, 16])
 
         # joint path
         x_e = self.extract(x_b, x_u)
